@@ -1,0 +1,19 @@
+version: "3"
+
+services:
+  db:
+    image: hayd/alpine-deno:1.7.2
+    environment:
+      - SERVER_PORT=18080
+      - TELEGRAM_TOKEN=12345678:abcdef
+      - BACKEND_DEV_CHAT_ID=-100abcdef
+      - FRONTEND_DEV_CHAT_ID=-100abcdef
+      - BACKEND_PROD_CHAT_ID=-100abcdef
+      - FRONTEND_PROD_CHAT_ID=-100abcdef
+      - OTHER_CHAT_ID=-100abcdef
+      - BACKEND_PLATFORM=csharp
+      - FRONTEND_PLATFORM=javascript
+    restart: unless-stopped
+    ports:
+      - 18080:18080
+    command: run --allow-all https://raw.githubusercontent.com/sgnl-pro/Sentry2Telegram/main/main.ts
