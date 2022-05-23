@@ -90,7 +90,6 @@ await serve(async (req) => {
       return new Response(`Method Not Allowed`, { status: 405 });
     }
     const json = await req.json();
-    console.log(json);
     message = json as SentryMessageDto;
     if (message.data.error) {
       isNew = true;
