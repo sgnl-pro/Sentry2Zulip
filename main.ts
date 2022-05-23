@@ -1,6 +1,6 @@
-import { serve } from "https://deno.land/std@0.87.0/http/mod.ts";
-import { Bot } from "https://deno.land/x/telegram@v0.1.1/mod.ts";
-import { Env } from "https://deno.land/x/env@v2.1.2/env.js";
+import { serve } from "https://deno.land/std@0.140.0/http/mod.ts";
+import { Bot } from "https://deno.land/x/grammy@v1.8.3/mod.ts";
+import { Env } from "https://deno.land/x/env@v2.2.0/env.js";
 
 const {
   SERVER_PORT,
@@ -33,11 +33,8 @@ interface SentryEventData {
   web_url: string;
 }
 
-const server = serve({ port: parseInt(SERVER_PORT) });
-console.log(`Starting server at http://localhost:${SERVER_PORT}/`);
-
 const bot = new Bot(TELEGRAM_TOKEN);
-bot.launch();
+bot.start();
 
 const escapeString = (s?: string) => {
   if (!s) {
@@ -79,22 +76,22 @@ const formatMessage = (m: SentryEventData, isNew: boolean) => {
   text += `\n${escapeString(m.message)}`;
   text += `\n\n\n  ${m.datetime.toString()}`;
   text +=
-    `\n<a href='${m.web_url}'>➕➖➖➖➖➖➖➖➖➕\n➕➖➖open SENTRY➖➖➕\n➕➖➖➖➖➖➖➖➖➕</a>`;
+    `\n<a href='${m.web_url}'>➕➖➖➖➖➖➖➖➖➕\n➕➖  OPEN SENTRY  ➖➖➕\n➕➖➖➖➖➖➖➖➖➕</a>`;
   return text;
 };
 
-for await (const req of server) {
+await serve(async (req) => {
   let message: SentryMessageDto;
   let event: SentryEventData;
   let isNew = false;
 
   try {
     if (req.method !== "POST") {
-      throw Error("Unknown method");
+      return new Response(`Method Not Allowed`, { status: 405 });
     }
-    const buf = await Deno.readAll(req.body);
-    const txt = new TextDecoder("utf8").decode(buf);
-    message = JSON.parse(txt) as SentryMessageDto;
+    const json = await req.json();
+    console.log(json);
+    message = json as SentryMessageDto;
     if (message.data.error) {
       isNew = true;
       event = message.data.error;
@@ -105,18 +102,20 @@ for await (const req of server) {
       throw Error("Sentry data message error");
     }
   } catch (error) {
-    req.respond({ body: `Request error: ${error.message}`, status: 400 });
-    continue;
+    return new Response(`Request error: ${error.message}`, { status: 400 });
   }
 
   try {
-    await bot.telegram.sendMessage({
-      chat_id: getChatId(event),
-      text: formatMessage(event, isNew),
+    await bot.api.sendMessage(getChatId(event), formatMessage(event, isNew), {
       parse_mode: "HTML",
     });
-    req.respond({ status: 204 });
+    return new Response("", { status: 204 });
   } catch (error) {
-    req.respond({ body: `Bot error: ${error.message}`, status: 500 });
+    return new Response(`Bot error: ${error.message}`, { status: 500 });
   }
-}
+}, {
+  port: parseInt(SERVER_PORT),
+  onListen: ({ port, hostname }) => {
+    console.log(`Starting server at ${hostname}:${port}/`);
+  },
+});

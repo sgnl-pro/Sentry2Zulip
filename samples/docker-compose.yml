@@ -2,7 +2,7 @@ version: "3"
 
 services:
   sentry2telegram:
-    image: hayd/alpine-deno:1.7.2
+    image: denoland/deno:1.22.0
     environment:
       - SERVER_PORT=18080
       - TELEGRAM_TOKEN=12345678:abcdef
