@@ -36,7 +36,7 @@ interface SentryEventData {
   };
 }
 
-const composeBody = (m: SentryEventData) => {
+const composeBody = (m: SentryEventData, json: unknown) => {
   const formData = new URLSearchParams();
   formData.append("type", "stream");
   formData.append("to", ZULIP_STREAM);
@@ -49,13 +49,20 @@ const composeBody = (m: SentryEventData) => {
   content += `**platform**:${m.platform}\n`;
   content += `**environment**: ${m.environment}\n`;
   if (m.metadata) {
-    content += `**${m.metadata.type}**: ${m.metadata.value}\n`;
-    content += `**filename**: ${m.metadata.filename}\n`;
+    if (m.metadata.type) {
+      content += `**${m.metadata.type}**: ${m.metadata.value}\n`;
+    }
+    if (m.metadata.filename) {
+      content += `**filename**: ${m.metadata.filename}\n`;
+    }
   }
   content += `**date**: ${m.datetime}\n`;
   content += "```\n\n\n";
   content += `\`\`\`quote${m.message}\`\`\`\n\n`;
+  content += "raw data:\n";
+  content += "```spoiler" + JSON.stringify(json, null, 2) + "```\n\n";
   formData.append("content", content);
+
   return formData.toString();
 };
 
