@@ -2,18 +2,14 @@ version: "3"
 
 services:
   sentry2telegram:
-    image: denoland/deno:1.22.0
+    image: denoland/deno:1.34.2
     environment:
       - SERVER_PORT=18080
-      - TELEGRAM_TOKEN=12345678:abcdef
-      - BACKEND_DEV_CHAT_ID=-100abcdef
-      - FRONTEND_DEV_CHAT_ID=-100abcdef
-      - BACKEND_PROD_CHAT_ID=-100abcdef
-      - FRONTEND_PROD_CHAT_ID=-100abcdef
-      - OTHER_CHAT_ID=-100abcdef
-      - BACKEND_PLATFORM=csharp
-      - FRONTEND_PLATFORM=javascript
+      - ZULIP_DOMAIN=example.zulipchat.com
+      - ZULIP_BOT_EMAIL=example@zulipchat.com
+      - ZULIP_BOT_APIKEY=exampleKey123456789
+      - ZULIP_STREAM=streamName
     restart: unless-stopped
     ports:
       - 18080:18080
-    command: run --allow-all https://raw.githubusercontent.com/sgnl-pro/Sentry2Telegram/main/main.ts
+    command: run --allow-all https://raw.githubusercontent.com/sgnl-pro/Sentry2Zulip/main/main.ts

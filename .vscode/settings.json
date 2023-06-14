@@ -3,18 +3,20 @@
   "deno.unstable": true,
   "deno.lint": true,
   "[typescript]": {
-    "editor.defaultFormatter": "denoland.vscode-deno",
+    "editor.defaultFormatter": "denoland.vscode-deno"
   },
   "[typescriptreact]": {
-    "editor.defaultFormatter": "denoland.vscode-deno",
+    "editor.defaultFormatter": "denoland.vscode-deno"
   },
   "deno.import_intellisense_origins": {
-    "https://deno.land": true,
+    "https://deno.land": true
   },
   "editor.formatOnPaste": false,
   "editor.formatOnSave": true,
   "cSpell.words": [
+    "APIKEY",
     "datetime",
-    "hayd"
-  ],
+    "hayd",
+    "ZULIP"
+  ]
 }

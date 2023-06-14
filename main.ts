@@ -1,19 +1,17 @@
-import { serve } from "https://deno.land/std@0.140.0/http/mod.ts";
-import { Bot } from "https://deno.land/x/grammy@v1.8.3/mod.ts";
-import { Env } from "https://deno.land/x/env@v2.2.0/env.js";
+import { serve } from "https://deno.land/std@0.191.0/http/mod.ts";
+import { Env } from "https://deno.land/x/env@v2.2.3/env.js";
 
 const {
   SERVER_PORT,
-  TELEGRAM_TOKEN,
-  BACKEND_DEV_CHAT_ID,
-  FRONTEND_DEV_CHAT_ID,
-  BACKEND_PROD_CHAT_ID,
-  FRONTEND_PROD_CHAT_ID,
-  OTHER_CHAT_ID,
-  BACKEND_PLATFORM,
-  FRONTEND_PLATFORM,
+  ZULIP_DOMAIN,
+  ZULIP_BOT_EMAIL,
+  ZULIP_BOT_APIKEY,
+  ZULIP_STREAM,
   // deno-lint-ignore no-explicit-any
 } = new Env().required as any;
+
+const endpoint = `https://${ZULIP_DOMAIN}/api/v1/messages`;
+const credentials = `${ZULIP_BOT_EMAIL}:${ZULIP_BOT_APIKEY}`;
 
 interface SentryMessageDto {
   data: {
@@ -31,59 +29,39 @@ interface SentryEventData {
   title: string;
   // deno-lint-ignore camelcase
   web_url: string;
+  metadata?: {
+    filename: string;
+    type: string;
+    value: string;
+  };
 }
 
-const bot = new Bot(TELEGRAM_TOKEN);
-bot.start();
-
-const escapeString = (s?: string) => {
-  if (!s) {
-    return "";
+const composeBody = (m: SentryEventData) => {
+  const formData = new URLSearchParams();
+  formData.append("type", "stream");
+  formData.append("to", ZULIP_STREAM);
+  formData.append("topic", m.release.split("@")[0]);
+  let content = `============================\n`;
+  content += `**[${m.release}](${m.web_url})** `;
+  content += `[(${m.environment})](${m.web_url})\n\n`;
+  content += "```quote\n";
+  content += `**title**:${m.title}\n`;
+  content += `**platform**:${m.platform}\n`;
+  content += `**environment**: ${m.environment}\n`;
+  if (m.metadata) {
+    content += `**${m.metadata.type}**: ${m.metadata.value}\n`;
+    content += `**filename**: ${m.metadata.filename}\n`;
   }
-  const lookup: { [name: string]: string } = {
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-  };
-  return s.replace(/[&<>]/g, (c: string) => lookup[c]);
-};
-
-const includes = (stack: string, needle: string) =>
-  stack.toLowerCase().includes(needle.toLowerCase());
-
-const getChatId = (m: SentryEventData) => {
-  if (includes(BACKEND_PLATFORM, m.platform)) {
-    if (includes(m.environment, "dev")) {
-      return BACKEND_DEV_CHAT_ID;
-    }
-    if (includes(m.environment, "prod")) {
-      return BACKEND_PROD_CHAT_ID;
-    }
-  }
-  if (includes(FRONTEND_PLATFORM, m.platform)) {
-    if (includes(m.environment, "dev")) {
-      return FRONTEND_DEV_CHAT_ID;
-    }
-    if (includes(m.environment, "prod")) {
-      return FRONTEND_PROD_CHAT_ID;
-    }
-  }
-  return OTHER_CHAT_ID;
-};
-const formatMessage = (m: SentryEventData, isNew: boolean) => {
-  let text = `<b>${isNew ? "🟥" : "🟧"}     ${m.release} (${m.environment}) </b>`;
-  text += `\n\n\n${escapeString(m.title)}`;
-  text += `\n${escapeString(m.message)}`;
-  text += `\n\n\n  ${m.datetime.toString()}`;
-  text +=
-    `\n<a href='${m.web_url}'>➕➖➖➖➖➖➖➖➖➕\n➕➖  OPEN SENTRY  ➖➖➕\n➕➖➖➖➖➖➖➖➖➕</a>`;
-  return text;
+  content += `**date**: ${m.datetime}\n`;
+  content += "```\n\n\n";
+  content += `\`\`\`quote${m.message}\`\`\`\n\n`;
+  formData.append("content", content);
+  return formData.toString();
 };
 
 await serve(async (req) => {
   let message: SentryMessageDto;
   let event: SentryEventData;
-  let isNew = false;
 
   try {
     if (req.method !== "POST") {
@@ -92,10 +70,8 @@ await serve(async (req) => {
     const json = await req.json();
     message = json as SentryMessageDto;
     if (message.data.error) {
-      isNew = true;
       event = message.data.error;
     } else if (message.data.event) {
-      isNew = false;
       event = message.data.event;
     } else {
       throw Error("Sentry data message error");
@@ -105,9 +81,17 @@ await serve(async (req) => {
   }
 
   try {
-    await bot.api.sendMessage(getChatId(event), formatMessage(event, isNew), {
-      parse_mode: "HTML",
+    const req = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Authorization": `Basic ${btoa(credentials)}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: composeBody(event),
     });
+    if (!req.ok) {
+      throw Error(`Zulip API error: ${req.statusText}`);
+    }
     return new Response("", { status: 204 });
   } catch (error) {
     return new Response(`Bot error: ${error.message}`, { status: 500 });
