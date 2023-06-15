@@ -41,26 +41,32 @@ const composeBody = (m: SentryEventData, json: unknown) => {
   formData.append("type", "stream");
   formData.append("to", ZULIP_STREAM);
   formData.append("topic", m.release.split("@")[0]);
-  let content = `============================\n`;
-  content += `**[${m.release}](${m.web_url})** `;
-  content += `[(${m.environment})](${m.web_url})\n\n`;
-  content += "```quote\n";
-  content += `**title**:${m.title}\n`;
-  content += `**platform**:${m.platform}\n`;
-  content += `**environment**: ${m.environment}\n`;
+  let content = `============================`;
+  content += `\n**[${m.release}](${m.web_url})** `;
+  content += `[(${m.environment})](${m.web_url})`;
+  content += "\n\n```quote";
+  content += `\n**title**:${m.title}`;
+  content += `\n**platform**:${m.platform}`;
+  content += `\n**environment**: ${m.environment}`;
   if (m.metadata) {
     if (m.metadata.type) {
-      content += `**${m.metadata.type}**: ${m.metadata.value}\n`;
+      content += `\n**${m.metadata.type}**: ${m.metadata.value}`;
     }
     if (m.metadata.filename) {
-      content += `**filename**: ${m.metadata.filename}\n`;
+      content += `\n**filename**: ${m.metadata.filename}`;
     }
   }
-  content += `**date**: ${m.datetime}\n`;
-  content += "```\n\n\n";
-  content += `\`\`\`quote${m.message}\`\`\`\n\n`;
-  content += "raw data:\n";
-  content += "```spoiler" + JSON.stringify(json, null, 2) + "```\n\n";
+  content += `\n**date**: ${m.datetime}`;
+  content += "\n```";
+  content += "\n\n\n```";
+  content += `\n${m.message}`;
+  content += "\n```";
+  content += "\n\n\nRaw data:";
+  content += "\n```spoiler";
+  content += "\n```json";
+  content += `\n${JSON.stringify(json, null, 2)}`;
+  content += "\n```";
+  content += "\n```";
   formData.append("content", content);
 
   return formData.toString();
@@ -69,12 +75,13 @@ const composeBody = (m: SentryEventData, json: unknown) => {
 await serve(async (req) => {
   let message: SentryMessageDto;
   let event: SentryEventData;
+  let json: unknown;
 
   try {
     if (req.method !== "POST") {
       return new Response(`Method Not Allowed`, { status: 405 });
     }
-    const json = await req.json();
+    json = await req.json();
     message = json as SentryMessageDto;
     if (message.data.error) {
       event = message.data.error;
@@ -94,7 +101,7 @@ await serve(async (req) => {
         "Authorization": `Basic ${btoa(credentials)}`,
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: composeBody(event),
+      body: composeBody(event, json),
     });
     if (!req.ok) {
       throw Error(`Zulip API error: ${req.statusText}`);
