@@ -79,7 +79,7 @@ await serve(async (req) => {
 
   try {
     if (req.method !== "POST") {
-      return new Response(`Method Not Allowed`, { status: 405 });
+      return new Response(`Method Not Allowed (v1)`, { status: 405 });
     }
     json = await req.json();
     message = json as SentryMessageDto;
